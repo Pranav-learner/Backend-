@@ -17,4 +17,14 @@ app.use(express.static("public")) // to get the static files, like images to giv
 app.use(cookieParser())
 
 
+//routes
+import userRouter from "./routes/user.routes.js";
+
+
+// routes declaration
+app.use("/api/v1/users", userRouter)
+// users will be prefix , then the userRouter will be called, which will add registers to the routes
+// http://localhost:8000/api/v1/users/register
+
+
 export default app
