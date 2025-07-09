@@ -5,7 +5,7 @@ const asyncHandler = (requestHandler) => {
     }
 }
 
-// two ways to handle up and down
+// two ways to handle --> up and down
 
 export { asyncHandler }
 
