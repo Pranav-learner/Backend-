@@ -61,9 +61,14 @@ userSchema.pre("save", async function (next) { // yha pe arrow function usee mat
 
 
 // thid method we made , to know if the password is correct or not 
-userSchema.methods.isPasswordCorrect = async function(password){
-    return await bcrypt.compare(password, this.password)
-}
+userSchema.methods.isPasswordCorrect = async function (password) {
+    try {
+        const ans = await bcrypt.compare(password, this.password)
+        console.log(ans)
+        return ans
+    } catch (error) {
+        throw new Error('Error comparing passwords')
+}}
 
 // JWT is a bearer token(the one who keeps it , that one will be the owner                      ) , which is a string which is used to authenticate the user
 
