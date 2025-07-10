@@ -325,7 +325,7 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
         throw new ApiError(400, "Avatar is required")
     }
 
-    const cloudinaryResponse = await uploadOnCloudinary(avatarLocalPath)
+    const avatar = await uploadOnCloudinary(avatarLocalPath)
 
     if (!avatar.url) {
         throw new ApiError(400, "Avatar upload failed")
@@ -350,11 +350,11 @@ const updateUserAvatar = asyncHandler(async (req, res) => {
 const updateUserCoverIamge = asyncHandler(async (req, res) => {
     const coverImageLocalPath = req.file?.path
 
-    if(!avatarLocalPath) {
+    if(!coverImageLocalPath) {
         throw new ApiError(400, "CoverImage is required")
     }
 
-    const cloudinaryResponse = await uploadOnCloudinary(coverImageLocalPath)
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath)
 
     if (!coverImage.url) {
         throw new ApiError(400, "CoverImage upload failed")
@@ -375,4 +375,145 @@ const updateUserCoverIamge = asyncHandler(async (req, res) => {
         .json(new ApiResponse(200, user, "Cover Image  updated successfully"))
 })
 
-export { registerUser, loginUser, logoutUser, refreshAccessToken, changeCurrentPassword, getCurrentUser, updateAccountDetails, updateUserAvatar, updateUserCoverIamge }
+
+//gett user details
+
+const getUserChannelprofile = asyncHandler(async(req, res) => {
+    const { username } = req.params
+    
+    if(!username?.trim()) {
+        throw new ApiError(400, "Username is missing")
+    }
+    
+    const channel = await User.aggregate([
+        {
+            $match: {  // to match the data on common ground
+                username: username?.toLowerCase()
+            }
+        },
+        {
+            $lookup: {
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "channel",
+                as: "subscribers"
+            }
+        },
+        {
+            $lookup: {  // to get the data from another collection
+                from: "subscriptions",
+                localField: "_id",
+                foreignField: "subscriber",
+                as: "subscribedTo"
+            }
+        },
+        {
+            $addFields: {   // to add extr fields to the data
+                subscribersCount: {
+                    $size: "$subscribers"
+                },
+                subscribedToCount: {
+                    $size: "$subscribedTo"
+                },
+                isSubscribed: {
+                    $cond: {
+                        if: {
+                            $in: [req.user?._id, "$subscribers.subscriber"]
+                        },
+                        then: true,
+                        else: false
+                    }
+                }
+            }
+        },
+        {
+            $project: {    //  to show only these fields
+                fullName: 1,
+                username: 1,
+                subscribersCount: 1,
+                subscribedToCount: 1,
+                isSubscribed: 1,
+                avatar: 1,
+                coverImage: 1,
+                email: 1
+            }
+        }
+    ])
+
+    if(!channel?.length) {
+        throw new ApiError(404, "Channel not found")
+    }
+    
+    const user = channel[0]
+    
+    return res
+        .status(200)
+        .json(new ApiResponse(200, user, "User details fetched successfully"))
+})
+
+
+// users watch history
+const getWatchHistory = asyncHandler(async (req, res) => {
+    // req.user._id , ye kya deta hai?-> ek string deta hai jo id nahi hoti hai , uske pura ObjectId("string ") ye pura chaiye hota hai, ye mongoose ki help se mongodb me hojata hai
+
+    const user = await User.aggregate([
+        {
+            $match: {
+                _id: new mongoose.Types.ObjectId(req.user._id) // hame yha pe new object banna pda , string ko object me convert kia, kyuki mongoose yha pe kaam nahi karta diretly
+            }
+        },
+        {
+            $lookup: {
+                from: "videos",
+                localField: "watchHistory",
+                foreignField: "_id",
+                as: "watchHistory",
+                pipeline: [
+                    {
+                        $lookup: {
+                            from: "users",
+                            localField: "owner",
+                            foreignField: "_id",
+                            as: "owner",
+                            pipeline: [
+                                {
+                                    $project: {
+                                        fullName: 1,
+                                        username: 1,
+                                        avatar: 1
+                                    }
+                                }
+                            ]
+                        }
+                    },
+                    {
+                        $addFields: {
+                            owner: {
+                                $arrayElemAt: ["$owner", 0]
+                            }
+                        }
+                    }
+                ]   
+            }
+        }
+    ])
+
+    return res
+        .status(200)
+        .json(new ApiResponse(200, user[0]?.watchHistory, "Watch history fetched successfully"))
+})
+
+
+export {
+    registerUser,
+    loginUser,
+    logoutUser,
+    refreshAccessToken,
+    changeCurrentPassword,
+    getCurrentUser,
+    updateAccountDetails,
+    updateUserAvatar,
+    updateUserCoverIamge,
+    getUserChannelprofile,
+    getWatchHistory
+}
