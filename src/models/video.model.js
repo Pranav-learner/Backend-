@@ -1,5 +1,6 @@
 import mongoose, {Schema} from "mongoose";
-import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2";
+import mongooseAggregatePaginate from "mongoose-aggregate-paginate-v2"; // this for pagination as one can only get 10 videos at a time, 
+// but we want to get all the videos which he will get in next page
 
 const videoSchema = new Schema(
     {
